@@ -131,7 +131,13 @@
             password: el('password').value
           })
         });
-        const data = await res.json();
+        const teks = await res.text();
+        let data;
+        try {
+              data = JSON.parse(teks);
+            } catch (err) {
+        data = { error: 'Server error. Cek Logs di Vercel.' };
+        }
         if (!res.ok) throw new Error(data.error || 'Terjadi kesalahan');
         tampilkanMasuk(data.username);
       } catch (err) {
