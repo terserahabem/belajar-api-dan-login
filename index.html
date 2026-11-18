@@ -1,1 +1,187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cuaca dan Ramalan</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 24px 16px;
+      background: #eef4ff;
+      color: #1f2937;
+      text-align: center;
+    }
+    h1 { margin: 0 0 4px; }
+    #lokasi { color: #6b7280; margin: 0 0 8px; }
+    .kartu {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+    #sekarang { max-width: 420px; margin: 0 auto 16px; }
+    .ikon { font-size: 64px; line-height: 1; }
+    .suhu { font-size: 48px; font-weight: 700; margin: 8px 0 4px; }
+    .detail { color: #4b5563; font-size: 14px; margin: 2px 0; }
+    #prakiraan {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .hari { padding: 12px 8px; }
+    .hari .ikon { font-size: 32px; }
+    .nama-hari { font-weight: 600; font-size: 14px; }
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: 0;
+      padding: 10px 18px;
+      font-size: 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 8px 0;
+    }
+    #status { min-height: 22px; color: #6b7280; }
+    footer { margin-top: 24px; font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>Cuaca dan Ramalan</h1>
+  <p id="lokasi"></p>
+  <button id="tombolLokasi" type="button">Pakai lokasi saya</button>
+  <p id="status"></p>
 
+  <div id="sekarang" class="kartu" hidden></div>
+  <div id="prakiraan"></div>
+
+  <footer>
+    Data cuaca: <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0)
+  </footer>
+
+  <script>
+    // Lokasi awal. Ganti angka ini untuk kota lain.
+    const KOTA_AWAL = { nama: 'Sidoarjo', lat: -7.4478, lon: 112.7183 };
+
+    // Arti kode cuaca dari Open-Meteo (standar WMO): [teks, ikon]
+    const KODE = {
+      0: ['Cerah', '☀️'],
+      1: ['Cerah berawan', '🌤️'],
+      2: ['Berawan sebagian', '⛅'],
+      3: ['Mendung', '☁️'],
+      45: ['Berkabut', '🌫️'],
+      48: ['Kabut beku', '🌫️'],
+      51: ['Gerimis ringan', '🌦️'],
+      53: ['Gerimis', '🌦️'],
+      55: ['Gerimis lebat', '🌧️'],
+      56: ['Gerimis dingin', '🌧️'],
+      57: ['Gerimis dingin lebat', '🌧️'],
+      61: ['Hujan ringan', '🌧️'],
+      63: ['Hujan sedang', '🌧️'],
+      65: ['Hujan lebat', '🌧️'],
+      66: ['Hujan dingin', '🌧️'],
+      67: ['Hujan dingin lebat', '🌧️'],
+      71: ['Salju ringan', '🌨️'],
+      73: ['Salju sedang', '🌨️'],
+      75: ['Salju lebat', '🌨️'],
+      77: ['Butiran salju', '🌨️'],
+      80: ['Hujan lokal ringan', '🌦️'],
+      81: ['Hujan lokal sedang', '🌧️'],
+      82: ['Hujan lokal lebat', '🌧️'],
+      85: ['Hujan salju ringan', '🌨️'],
+      86: ['Hujan salju lebat', '🌨️'],
+      95: ['Badai petir', '⛈️'],
+      96: ['Badai petir, hujan es', '⛈️'],
+      99: ['Badai petir, hujan es lebat', '⛈️']
+    };
+
+    function infoCuaca(kode) {
+      return KODE[kode] || ['Tidak diketahui', '❓'];
+    }
+
+    // Membuat elemen berisi teks lalu memasangnya di dalam elemen induk
+    function tambah(induk, tag, kelas, teks) {
+      const el = document.createElement(tag);
+      el.className = kelas;
+      el.textContent = teks;
+      induk.appendChild(el);
+      return el;
+    }
+
+    function tampilkan(data, nama) {
+      document.getElementById('lokasi').textContent = nama;
+
+      // Cuaca saat ini
+      const c = data.current;
+      const [teks, ikon] = infoCuaca(c.weather_code);
+      const box = document.getElementById('sekarang');
+      box.hidden = false;
+      box.innerHTML = '';
+      tambah(box, 'div', 'ikon', ikon);
+      tambah(box, 'div', 'suhu', Math.round(c.temperature_2m) + '°C');
+      tambah(box, 'div', 'detail', teks);
+      tambah(box, 'div', 'detail',
+        'Kelembapan ' + c.relative_humidity_2m + '% · Angin ' + Math.round(c.wind_speed_10m) + ' km/j');
+      tambah(box, 'div', 'detail', 'Diperbarui: ' + c.time.replace('T', ' '));
+
+      // Ramalan beberapa hari ke depan
+      const wadah = document.getElementById('prakiraan');
+      wadah.innerHTML = '';
+      data.daily.time.forEach((tgl, i) => {
+        const kartu = document.createElement('div');
+        kartu.className = 'kartu hari';
+        const label = i === 0
+          ? 'Hari ini'
+          : new Date(tgl + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long' });
+        const [t, ik] = infoCuaca(data.daily.weather_code[i]);
+        tambah(kartu, 'div', 'nama-hari', label);
+        tambah(kartu, 'div', 'ikon', ik);
+        tambah(kartu, 'div', 'detail', t);
+        tambah(kartu, 'div', 'detail',
+          Math.round(data.daily.temperature_2m_max[i]) + '° / ' +
+          Math.round(data.daily.temperature_2m_min[i]) + '°');
+        wadah.appendChild(kartu);
+      });
+    }
+
+    async function muatCuaca(lat, lon, nama) {
+      const status = document.getElementById('status');
+      status.textContent = 'Memuat cuaca...';
+      try {
+        const url = 'https://api.open-meteo.com/v1/forecast' +
+          '?latitude=' + lat + '&longitude=' + lon +
+          '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m' +
+          '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+          '&timezone=auto&forecast_days=5';
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('gagal');
+        const data = await res.json();
+        tampilkan(data, nama);
+        status.textContent = '';
+      } catch (err) {
+        status.textContent = 'Gagal memuat cuaca. Coba lagi nanti.';
+      }
+    }
+
+    // Tombol "Pakai lokasi saya": meminta izin lokasi dari browser
+    document.getElementById('tombolLokasi').addEventListener('click', () => {
+      const status = document.getElementById('status');
+      if (!navigator.geolocation) {
+        status.textContent = 'Browser ini tidak mendukung lokasi.';
+        return;
+      }
+      status.textContent = 'Meminta izin lokasi...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => muatCuaca(pos.coords.latitude, pos.coords.longitude, 'Lokasi Anda'),
+        () => { status.textContent = 'Izin lokasi ditolak.'; }
+      );
+    });
+
+    muatCuaca(KOTA_AWAL.lat, KOTA_AWAL.lon, KOTA_AWAL.nama);
+  </script>
+</body>
+</html>
