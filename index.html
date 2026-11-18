@@ -1,1 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f3f4f6;
+      color: #1f2937;
+      padding: 16px;
+    }
+    .kartu {
+      width: 100%;
+      max-width: 360px;
+      background: #fff;
+      padding: 28px 24px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+    h1 { margin: 0 0 20px; font-size: 24px; }
+    label { display: block; text-align: left; font-size: 14px; margin: 12px 0 4px; }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+    }
+    button {
+      width: 100%;
+      margin-top: 18px;
+      padding: 12px;
+      font-size: 16px;
+      color: #fff;
+      background: #2563eb;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    #pesan { color: #dc2626; min-height: 20px; font-size: 14px; margin: 12px 0 0; }
+    .ganti { font-size: 14px; color: #6b7280; margin: 16px 0 0; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="kartu">
 
+    <!-- Tampilan sebelum masuk -->
+    <div id="tampilanLogin">
+      <h1 id="judul">Masuk</h1>
+      <form id="form">
+        <label for="username">Username</label>
+        <input id="username" autocomplete="username" required minlength="3" maxlength="20">
+
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required minlength="8">
+
+        <button type="submit" id="tombolKirim">Masuk</button>
+      </form>
+      <p id="pesan" role="alert"></p>
+      <p class="ganti">
+        <span id="teksGanti">Belum punya akun?</span>
+        <a href="#" id="linkGanti">Daftar</a>
+      </p>
+    </div>
+
+    <!-- Tampilan setelah masuk -->
+    <div id="tampilanMasuk" hidden>
+      <h1>Halo, <span id="namaPengguna"></span>!</h1>
+      <p>Anda sudah masuk.</p>
+      <button type="button" id="tombolKeluar">Keluar</button>
+    </div>
+
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    let modeDaftar = false;
+
+    // Mengganti tulisan antara mode Masuk dan Daftar
+    function aturMode() {
+      el('judul').textContent = modeDaftar ? 'Daftar' : 'Masuk';
+      el('tombolKirim').textContent = modeDaftar ? 'Daftar' : 'Masuk';
+      el('teksGanti').textContent = modeDaftar ? 'Sudah punya akun?' : 'Belum punya akun?';
+      el('linkGanti').textContent = modeDaftar ? 'Masuk' : 'Daftar';
+      el('password').autocomplete = modeDaftar ? 'new-password' : 'current-password';
+      el('pesan').textContent = '';
+    }
+
+    el('linkGanti').addEventListener('click', (e) => {
+      e.preventDefault();
+      modeDaftar = !modeDaftar;
+      aturMode();
+    });
+
+    function tampilkanMasuk(nama) {
+      el('namaPengguna').textContent = nama;
+      el('tampilanLogin').hidden = true;
+      el('tampilanMasuk').hidden = false;
+    }
+
+    function tampilkanForm() {
+      el('tampilanMasuk').hidden = true;
+      el('tampilanLogin').hidden = false;
+      el('form').reset();
+    }
+
+    // Saat tombol Masuk/Daftar ditekan
+    el('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const tombol = el('tombolKirim');
+      tombol.disabled = true;
+      el('pesan').textContent = '';
+
+      try {
+        const res = await fetch('/api/auth?aksi=' + (modeDaftar ? 'daftar' : 'masuk'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: el('username').value,
+            password: el('password').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Terjadi kesalahan');
+        tampilkanMasuk(data.username);
+      } catch (err) {
+        el('pesan').textContent = err.message;
+      }
+      tombol.disabled = false;
+    });
+
+    // Tombol Keluar
+    el('tombolKeluar').addEventListener('click', async () => {
+      await fetch('/api/auth?aksi=keluar', { method: 'POST' });
+      tampilkanForm();
+    });
+
+    // Saat halaman dibuka: cek apakah sudah pernah masuk
+    (async () => {
+      try {
+        const res = await fetch('/api/auth');
+        if (res.ok) {
+          const data = await res.json();
+          tampilkanMasuk(data.username);
+        }
+      } catch (err) { /* abaikan, tampilkan form login */ }
+    })();
+  </script>
+</body>
+</html>
